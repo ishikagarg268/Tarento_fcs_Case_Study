@@ -1,48 +1,62 @@
 # Case Study Scenarios to discuss
 
 ## Scenario 1: Cost Allocation and Tracking
+**Situation**: The company needs to track and allocate costs accurately across different Warehouses and Stores. The costs include labor, inventory, transportation, and overhead expenses.
 
-**Objective:** Produce a trusted cost-per-order, cost-per-unit and cost-per-store view without double-counting shared costs.
+**Task**: Discuss the challenges in accurately tracking and allocating costs in a fulfillment environment. Think about what are important considerations for this, what are previous experiences that you have you could related to this problem and elaborate some questions and considerations
 
-I would first map the cost taxonomy and agree with Finance on cost ownership, accounting periods, currency, tax treatment and allocation rules. Direct costs (warehouse labour, rent, handling and transport) should be assigned to the warehouse/store where they originate. Shared overhead should use transparent drivers such as pallet-days, order lines, units handled, distance, occupied area or labour hours. The driver should reflect causality rather than simply being easy to measure.
+**Questions you may have and considerations:**
 
-Key questions:
-- Which decisions must the reports support: pricing, network design, store profitability, staffing or budgeting?
-- What is the source of truth for each cost, and how quickly is it available?
-- Are costs required at warehouse, store, product, shipment or order level?
-- How are returns, transfers, shared facilities, idle capacity and exceptional costs treated?
-- Who owns allocation rules, and how are rule changes versioned and audited?
-
-I would keep source transactions immutable, store allocation results with the rule version and effective dates, and reconcile allocated totals to the general ledger. Dashboards should expose both the allocated amount and the driver/assumptions so users can explain variances. I would validate the model against a small set of representative warehouses before rolling it out.
+Before defining the solution, I would first clarify how each cost is currently recorded and which business entity should own the cost. For example, labor costs could be associated with a Warehouse or Store, transportation costs could be associated with movements between locations, and inventory costs could depend on the product, quantity and storage location. I would also clarify whether costs need to be tracked in real time or whether daily or monthly aggregation is sufficient.
+Important questions would include: What are the source systems for labor, inventory and transportation costs? How are shared overhead costs allocated between Warehouses and Stores? What identifiers can consistently connect financial records to a Warehouse, Store or Product? How should refunds, corrections and cancelled transactions be handled? What currency and accounting period rules are required?
+From a technical perspective, I would maintain a clear audit trail for cost records and avoid overwriting historical cost information. I would also define consistent identifiers and timestamps so that costs can be traced back to their source. Aggregated reporting data could be separated from transactional data to avoid affecting operational workloads. Before implementation, I would also confirm the expected reporting granularity, retention requirements and reconciliation process with the finance team.
 
 ## Scenario 2: Cost Optimization Strategies
+**Situation**: The company wants to identify and implement cost optimization strategies for its fulfillment operations. The goal is to reduce overall costs without compromising service quality.
 
-I would establish a baseline of total cost and service quality, segmented by warehouse, store, product, route and order type. Candidate initiatives include improving warehouse slotting and picking paths, consolidating shipments, increasing vehicle utilization, reducing inventory dwell and shrinkage, adjusting labour schedules to demand, and revisiting warehouse/store placement.
+**Task**: Discuss potential cost optimization strategies for fulfillment operations and expected outcomes from that. How would you identify, prioritize and implement these strategies?
 
-Prioritization should combine expected annual savings, implementation cost, time to value, confidence, operational risk and customer impact. A simple impact-versus-effort matrix helps shortlist ideas, but estimates should include one-time costs and ongoing operating costs. I would run a pilot with a control or comparable baseline, define measurable success criteria (cost per order, on-time delivery, fill rate, damage and returns), and expand only after results are validated.
+**Questions you may have and considerations:**
 
-Cost reductions must have guardrails: service levels, safety, compliance and employee workload should not deteriorate. Savings should be measured against a normalized baseline that accounts for volume and product mix, then tracked after implementation to confirm they persist. Finance and Operations should jointly sign off on realized savings.
+I would first establish a baseline for the current fulfillment costs and service levels. The analysis could include warehouse operating costs, labor utilization, transportation costs, inventory holding costs, storage capacity utilization and costs associated with delayed or inefficient fulfillment. I would also identify which costs are fixed and which are variable so that optimization opportunities can be evaluated correctly.
+Potential areas for optimization could include improving warehouse capacity utilization, reducing unnecessary inventory movement, optimizing transportation routes, balancing inventory between locations and improving workforce planning. I would avoid optimizing purely for cost because reducing a cost may negatively affect delivery time, stock availability or customer service.
+I would prioritize opportunities using measurable criteria such as expected cost reduction, implementation effort, operational risk and impact on service quality. Each change could initially be implemented as a controlled change and measured against the baseline. The system should provide metrics that allow the business to compare expected and actual savings and identify whether the optimization has created any negative operational impact.
 
 ## Scenario 3: Integration with Financial Systems
+**Situation**: The Cost Control Tool needs to integrate with existing financial systems to ensure accurate and timely cost data. The integration should support real-time data synchronization and reporting.
 
-Integration connects operational events (receipts, picks, labour, dispatches and transfers) with financial records (invoices, payroll, freight bills and ledger postings). It reduces manual reconciliation, improves timeliness and allows operational changes to be evaluated in financial terms.
+**Task**: Discuss the importance of integrating the Cost Control Tool with financial systems. What benefits the company would have from that and how would you ensure seamless integration and data synchronization?
 
-Before choosing an approach, I would identify source/target systems, ownership of each field, identifiers, required latency, volumes, data retention, security and reconciliation requirements. For near-real-time events, I would prefer an event or message-based integration where available; scheduled APIs or batch imports may be more suitable for invoices and accounting close. Each message should have a stable ID, schema version and idempotency key. Retries should use backoff, failures should go to a dead-letter/replay workflow, and monitoring should show lag and rejected records.
+**Questions you may have and considerations:**
 
-I would reconcile counts and monetary totals by period and legal entity, preserve source references, use least-privilege credentials and encrypt data in transit and at rest. Integration contracts and mappings need automated tests, contract/version management and a clear owner for incidents. “Real time” should be defined with the business; financial ledgers may require controlled posting windows even when operational data is streamed continuously.
+Integration with financial systems is important because the Cost Control Tool needs reliable financial data to provide accurate cost tracking and reporting. Before designing the integration, I would identify the systems involved, the ownership of each data field, the required synchronization frequency and which system is the source of truth for each type of financial information.
+I would clarify whether all data needs to be synchronized in real time or whether some information can be processed in batches. I would also define how transactions are identified, how duplicate messages are detected, and how failures or partially processed records are handled. Financial data should have a clear audit trail so that differences between the Cost Control Tool and the financial system can be investigated and reconciled.
+From a technical perspective, an API or event-driven integration could be used depending on the capabilities of the existing financial systems. For asynchronous processing, reliable message delivery, idempotency and retry handling would be important. Monitoring and reconciliation reports should identify failed, delayed or inconsistent records. Security should also be considered because financial information may contain sensitive business data.
 
 ## Scenario 4: Budgeting and Forecasting
+**Situation**: The company needs to develop budgeting and forecasting capabilities for its fulfillment operations. The goal is to predict future costs and allocate resources effectively.
 
-Budgets translate business plans into expected costs and resource needs; forecasts update those expectations as demand and operating conditions change. Together they support capacity planning, cash management, staffing and early intervention when actuals diverge.
+**Task**: Discuss the importance of budgeting and forecasting in fulfillment operations and what would you take into account designing a system to support accurate budgeting and forecasting?
 
-I would gather historical cost and volume data, seasonality, product mix, promotions, service-level targets, wage and fuel assumptions, rent/contract commitments, planned network changes and known one-off events. The model should distinguish fixed, variable and step-fixed costs, document assumptions, and allow scenarios such as base/upside/downside demand. Forecasts should be granular enough to drive decisions but not imply false precision.
+**Questions you may have and considerations:**
 
-The system should version approved budgets, preserve prior forecasts, compare actuals to budget and latest forecast, and explain variances by price, volume, mix and efficiency. Forecast accuracy should be measured over time (for example, weighted absolute percentage error where appropriate), with back-testing and bias checks. Finance and Operations should own assumptions together, with access controls and an approval trail.
+I would first understand how budgets are currently created and which business dimensions are used for planning. Important dimensions could include Warehouse, Store, Product, location, cost category and accounting period. I would also determine which historical data is available and how frequently forecasts need to be recalculated.
+The system should distinguish between planned, actual and forecasted costs. It should allow authorized users to create or update budgets while preserving previous versions so that changes can be audited. Actual costs should be compared with budgets to identify variances, and significant variances should be available for investigation.
+For forecasting, I would consider historical cost trends, warehouse capacity, inventory levels, expected demand, transportation costs and seasonal changes where relevant to the business. I would also clarify how frequently forecasts should be updated and whether users need scenario-based forecasting. From a technical perspective, calculations that are expensive or based on large historical datasets could be processed asynchronously, while summarized results could be stored for faster reporting.
 
 ## Scenario 5: Cost Control in Warehouse Replacement
+**Situation**: The company is planning to replace an existing Warehouse with a new one. The new Warehouse will reuse the Business Unit Code of the old Warehouse. The old Warehouse will be archived, but its cost history must be preserved.
 
-Reusing a Business Unit Code must not erase the old warehouse's identity or financial history. The old warehouse should be archived with an effective end date, while the replacement is a new record linked to the same business unit and ideally to a `replaces`/`replacedBy` relationship. Cost transactions should reference an immutable warehouse record ID, not only the reusable business code; otherwise historical reports may incorrectly attribute old costs to the new operation.
+**Task**: Discuss the cost control aspects of replacing a Warehouse. Why is it important to preserve cost history and how this relates to keeping the new Warehouse operation within budget?
 
-Before replacement, I would compare remaining stock, capacity, location limits, transfer and shutdown costs, lease overlap, staffing, equipment and expected downtime. The replacement plan should include one-time transition costs and a budget baseline for the new operation. During cutover, stock quantities should reconcile and operational events should be timestamped to avoid gaps or double counting.
+**Questions you may have and considerations:**
 
-After cutover, report the old site's actual final costs separately from the new site's ramp-up costs, while retaining a business-unit-level roll-up for longitudinal comparisons. Audit history, access controls and an atomic replacement transaction protect the record from partial updates. Relevant measures include transition spend versus budget, cost per unit handled, utilization, service level and time to reach planned productivity.
+The Business Unit Code identifies the operational unit, but replacing the Warehouse should not mean losing the historical information associated with the previous Warehouse. I would therefore treat the old Warehouse as an archived historical entity and create a new active Warehouse record using the same Business Unit Code. Historical cost records should remain associated with the old Warehouse identity so that previous spending can still be audited and reported.
+Before replacement, I would clarify the old Warehouse's remaining stock, capacity, outstanding costs, open transportation activities and any financial commitments. The new Warehouse should be checked against its available capacity and operational budget before it becomes active. The replacement process should also clearly define when the old Warehouse stops receiving new costs and when the new Warehouse starts receiving them.
+From a technical perspective, the replacement should be atomic so that the old Warehouse is not archived without successfully creating the new Warehouse. Historical records should not be physically deleted. The system should retain timestamps and identifiers that allow reports to distinguish between the old and new Warehouse instances even though they share the same Business Unit Code.
+I would also define how budgets are transferred or recalculated during the replacement. The finance team should be able to compare historical costs from the old Warehouse with the new Warehouse's planned and actual costs. This makes it possible to monitor whether the replacement remains within budget without losing the historical cost information required for financial analysis and auditing.
+
+## Instructions for Candidates
+Before starting the case study, read the [BRIEFING.md](BRIEFING.md) to quickly understand the domain, entities, business rules, and other relevant details.
+
+**Analyze the Scenarios**: Carefully analyze each scenario and consider the tasks provided. To make informed decisions about the project's scope and ensure valuable outcomes, what key information would you seek to gather before defining the boundaries of the work? Your goal is to bridge technical aspects with business value, bringing a high level discussion; no need to deep dive.

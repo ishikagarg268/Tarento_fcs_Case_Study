@@ -1,30 +1,113 @@
-<<<<<<< HEAD
-# Tarento / Fulfilment Warehouse Case Study
+# Java Code Assignment
 
-Java 17 + Quarkus implementation for the supplied case study. The implementation includes location resolution, warehouse creation/retrieval/archive/replacement validation, and post-commit synchronization of Store changes with the legacy gateway. Answers for the case study and code-base questions are included in `case-study/CASE_STUDY.md` and `java-assignment/QUESTIONS.md`.
+A Java 17 and Quarkus based application implementing REST APIs for Products, Stores, Warehouses, and Store-Product-Warehouse Fulfilment.
 
-## Requirements
-- JDK 17+
-- Docker (for PostgreSQL in dev/test) or a configured PostgreSQL database
+The application demonstrates REST API development, PostgreSQL persistence, business validation, transaction management, automated testing, API documentation, and a hexagonal architecture approach for the fulfilment functionality.
 
-## Run
-From `java-assignment/`:
+## Assignment Overview
 
-```bash
-./mvnw clean verify
-./mvnw quarkus:dev
+The assignment focuses on implementing and extending an existing Java application with the following capabilities:
+
+- Product management
+- Store management
+- Warehouse management
+- Store-Product-Warehouse fulfilment association
+- Business rule validation
+- Database persistence using PostgreSQL
+- Transaction handling
+- Automated unit and integration testing
+- API documentation using OpenAPI and Swagger UI
+- Test coverage reporting using JaCoCo
+- CI execution using GitHub Actions
+
+The original assignment requirements are available in:
+
+- [CODE_ASSIGNMENT](CODE_ASSIGNMENT.md)
+- [CASE_STUDY](../case-study/CASE_STUDY.md)
+- [QUESTIONS](QUESTIONS.md)
+
+---
+
+## Technology Stack
+
+| Technology | Purpose |
+|---|---|
+| Java 17 | Application development |
+| Quarkus | Backend framework |
+| Maven | Build and dependency management |
+| PostgreSQL | Relational database |
+| Hibernate ORM / Panache | Persistence layer |
+| JAX-RS | REST API development |
+| JUnit 5 | Unit testing |
+| REST Assured | API testing |
+| Mockito | Mocking in unit tests |
+| JaCoCo | Code coverage reporting |
+| OpenAPI / Swagger UI | API documentation |
+| Docker | PostgreSQL container and application support |
+| GitHub Actions | Continuous Integration |
+
+---
+
+## Application Features
+
+### Product
+
+The Product functionality provides APIs for managing products and their associated information.
+
+### Store
+
+The Store functionality provides APIs for creating, reading, updating, patching, and deleting stores.
+
+Store changes are synchronized with the downstream legacy store system using a transaction-aware CDI event observer. The legacy gateway is invoked only after the database transaction completes successfully.
+
+### Warehouse
+
+Warehouse management follows an adapter/domain-based structure with separate database, REST, domain model, port, and use-case components.
+
+### Fulfilment
+
+The fulfilment functionality associates a Product with a Store and a Warehouse.
+
+The fulfilment implementation is organized using application, domain, and adapter layers following a hexagonal architecture approach
+
+```text
+fulfilment/
+├── adapters/
+│   ├── database/
+│   │   ├── StoreProductWarehouse.java
+│   │   └── StoreProductWarehouseRepository.java
+│   └── restapi/
+│       └── StoreProductWarehouseResource.java
+├── application/
+│   └── StoreProductWarehouseService.java
+└── domain/
+    ├── ports/
+    │   └── StoreProductWarehouseStore.java
+    └── validators/
+        └── StoreProductWarehouseValidator.java
 ```
+## Application Screenshots
 
-The API runs on `http://localhost:8080`. Warehouse endpoints are defined in `src/main/resources/openapi/warehouse-openapi.yaml`. In production, configure `quarkus.datasource.*` environment-specific properties and use database migrations rather than the starter project's `drop-and-create` schema strategy.
+### Application Home
+![Application Home](java-assignment/screenshots/01-application-home.png)
 
-## CI
-GitHub Actions runs Maven verification on pushes and pull requests and publishes the JaCoCo report as an artifact. See `.github/workflows/ci.yml`.
+### Swagger UI
+![Swagger UI](java-assignment/screenshots/02-swagger-ui.png)
 
-## Design notes
-- Warehouse lookup treats `businessUnitCode` as the API identifier and only returns active warehouses.
-- Archiving preserves the historical database row; replacement archives the current row and creates a new row with the same business-unit code.
-- Store-to-legacy calls are registered as transaction synchronizations and run only after a successful database commit.
-- Before production, add an outbox for reliable external delivery (transaction callbacks alone cannot guarantee delivery if the process crashes after commit), authentication/authorization, migrations, structured error contracts, and observability.
-=======
-# Tarento_Case_Study
->>>>>>> f980d5a1e15d1557eeee687f1c1cb88463abf3df
+### Product API
+![Product API](java-assignment/screenshots/03-product-api-success.png)
+
+### Store API
+![Store API](java-assignment/screenshots/04-store-api-success.png)
+
+### Warehouse API
+![Warehouse API](java-assignment/screenshots/05-warehouse-api-success.png)
+
+### Fulfilment API
+![Fulfilment API](java-assignment/screenshots/06-fulfilment-success.png)
+
+### Test Coverage
+![Test Coverage](java-assignment/screenshots/07-test-coverage.png)
+
+### Test Results
+![Test Results](java-assignment/screenshots/08-test-results.png)

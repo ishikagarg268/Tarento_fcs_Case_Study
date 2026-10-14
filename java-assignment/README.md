@@ -1,87 +1,113 @@
 # Java Code Assignment
 
-This is a short code assignment that explores various aspects of software development, including API implementation, documentation, persistence layer handling, and testing.
+A Java 17 and Quarkus based application implementing REST APIs for Products, Stores, Warehouses, and Store-Product-Warehouse Fulfilment.
 
-## About the assignment
+The application demonstrates REST API development, PostgreSQL persistence, business validation, transaction management, automated testing, API documentation, and a hexagonal architecture approach for the fulfilment functionality.
 
-You will find the tasks of this assignment on [CODE_ASSIGNMENT](CODE_ASSIGNMENT.md) file
+## Assignment Overview
 
-## About the code base
+The assignment focuses on implementing and extending an existing Java application with the following capabilities:
 
-This is based on https://github.com/quarkusio/quarkus-quickstarts
+- Product management
+- Store management
+- Warehouse management
+- Store-Product-Warehouse fulfilment association
+- Business rule validation
+- Database persistence using PostgreSQL
+- Transaction handling
+- Automated unit and integration testing
+- API documentation using OpenAPI and Swagger UI
+- Test coverage reporting using JaCoCo
+- CI execution using GitHub Actions
 
-### Requirements
+The original assignment requirements are available in:
 
-To compile and run this demo you will need:
+- [CODE_ASSIGNMENT](CODE_ASSIGNMENT.md)
+- [CASE_STUDY](../case-study/CASE_STUDY.md)
+- [QUESTIONS](QUESTIONS.md)
 
-- JDK 17+
+---
 
-In addition, you will need either a PostgreSQL database, or Docker to run one.
+## Technology Stack
 
-### Configuring JDK 17+
+| Technology | Purpose |
+|---|---|
+| Java 17 | Application development |
+| Quarkus | Backend framework |
+| Maven | Build and dependency management |
+| PostgreSQL | Relational database |
+| Hibernate ORM / Panache | Persistence layer |
+| JAX-RS | REST API development |
+| JUnit 5 | Unit testing |
+| REST Assured | API testing |
+| Mockito | Mocking in unit tests |
+| JaCoCo | Code coverage reporting |
+| OpenAPI / Swagger UI | API documentation |
+| Docker | PostgreSQL container and application support |
+| GitHub Actions | Continuous Integration |
 
-Make sure that `JAVA_HOME` environment variables has been set, and that a JDK 17+ `java` command is on the path.
+---
 
-## Building the demo
+## Application Features
 
-Execute the Maven build on the root of the project:
+### Product
 
-```sh
-./mvnw package
+The Product functionality provides APIs for managing products and their associated information.
+
+### Store
+
+The Store functionality provides APIs for creating, reading, updating, patching, and deleting stores.
+
+Store changes are synchronized with the downstream legacy store system using a transaction-aware CDI event observer. The legacy gateway is invoked only after the database transaction completes successfully.
+
+### Warehouse
+
+Warehouse management follows an adapter/domain-based structure with separate database, REST, domain model, port, and use-case components.
+
+### Fulfilment
+
+The fulfilment functionality associates a Product with a Store and a Warehouse.
+
+The fulfilment implementation is organized using application, domain, and adapter layers following a hexagonal architecture approach
+
+```text
+fulfilment/
+├── adapters/
+│   ├── database/
+│   │   ├── StoreProductWarehouse.java
+│   │   └── StoreProductWarehouseRepository.java
+│   └── restapi/
+│       └── StoreProductWarehouseResource.java
+├── application/
+│   └── StoreProductWarehouseService.java
+└── domain/
+    ├── ports/
+    │   └── StoreProductWarehouseStore.java
+    └── validators/
+        └── StoreProductWarehouseValidator.java
 ```
+## Application Screenshots
 
-## Running the demo
+### Application Home
+![Application Home](screenshots/01-application-home.png)
 
-### Live coding with Quarkus
+### Swagger UI
+![Swagger UI](screenshots/02-swagger-ui.png)
 
-The Maven Quarkus plugin provides a development mode that supports
-live coding. To try this out:
+### Product API
+![Product API](screenshots/03-product-api-success.png)
 
-```sh
-./mvnw quarkus:dev
-```
+### Store API
+![Store API](screenshots/04-store-api-success.png)
 
-In this mode you can make changes to the code and have the changes immediately applied, by just refreshing your browser.
+### Warehouse API
+![Warehouse API](screenshots/05-warehouse-api-success.png)
 
-    Hot reload works even when modifying your JPA entities.
-    Try it! Even the database schema will be updated on the fly.
+### Fulfilment API
+![Fulfilment API](screenshots/06-fulfilment-success.png)
 
-## (Optional) Run Quarkus in JVM mode
+### Test Coverage
+![Test Coverage](screenshots/07-test-coverage.png)
 
-When you're done iterating in developer mode, you can run the application as a conventional jar file.
-
-First compile it:
-
-```sh
-./mvnw package
-```
-
-Next we need to make sure you have a PostgreSQL instance running (Quarkus automatically starts one for dev and test mode). To set up a PostgreSQL database with Docker:
-
-```sh
-docker run -it --rm=true --name quarkus_test -e POSTGRES_USER=quarkus_test -e POSTGRES_PASSWORD=quarkus_test -e POSTGRES_DB=quarkus_test -p 15432:5432 postgres:13.3
-```
-
-Connection properties for the Agroal datasource are defined in the standard Quarkus configuration file,
-`src/main/resources/application.properties`.
-
-Then run it:
-
-```sh
-java -jar ./target/quarkus-app/quarkus-run.jar
-```
-    Have a look at how fast it boots.
-    Or measure total native memory consumption...
-
-
-## See the demo in your browser
-
-Navigate to:
-
-<http://localhost:8080/index.html>
-
-Have fun, and join the team of contributors!
-
-## Troubleshooting
-
-Using **IntelliJ**, in case the generated code is not recognized and you have compilation failures, you may need to add `target/.../jaxrs` folder as "generated sources".
+### Test Results
+![Test Results](screenshots/08-test-results.png)
