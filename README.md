@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Tarento / Fulfilment Warehouse Case Study
 
 Java 17 + Quarkus implementation for the supplied case study. The implementation includes location resolution, warehouse creation/retrieval/archive/replacement validation, and post-commit synchronization of Store changes with the legacy gateway. Answers for the case study and code-base questions are included in `case-study/CASE_STUDY.md` and `java-assignment/QUESTIONS.md`.
@@ -24,3 +25,6 @@ GitHub Actions runs Maven verification on pushes and pull requests and publishes
 - Archiving preserves the historical database row; replacement archives the current row and creates a new row with the same business-unit code.
 - Store-to-legacy calls are registered as transaction synchronizations and run only after a successful database commit.
 - Before production, add an outbox for reliable external delivery (transaction callbacks alone cannot guarantee delivery if the process crashes after commit), authentication/authorization, migrations, structured error contracts, and observability.
+=======
+# Tarento_Case_Study
+>>>>>>> f980d5a1e15d1557eeee687f1c1cb88463abf3df
