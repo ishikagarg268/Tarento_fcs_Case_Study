@@ -4,7 +4,7 @@ A Java 17 / Quarkus REST application for the Tarento fulfilment case study. It c
 
 ## Repository layout
 
-```text
+
 .
 ├── README.md                         # Project overview and runbook
 ├── case-study/
