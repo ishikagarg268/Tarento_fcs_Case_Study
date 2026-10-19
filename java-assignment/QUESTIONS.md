@@ -1,30 +1,27 @@
 # Questions
 
-Here we have 3 questions related to the code base for you to answer. It is not about right or wrong, but more about what's the reasoning behind your decisions.
-
-1. In this code base, we have some different implementation strategies when it comes to database access layer and manipulation. If you would maintain this code base, would you refactor any of those? Why?
+## 1. Database access and manipulation strategies
 
 **Answer:**
-```txt
-Yes, I would gradually standardize the database access approach. The Product and Store implementations currently use Panache repositories/entities directly from the REST resources, while the Warehouse implementation separates the domain model, repository port, database adapter and use cases. I would prefer the Warehouse-style separation for business-critical functionality because it keeps business rules independent from the persistence technology and makes the use cases easier to unit test.
 
-I would not refactor everything immediately because the existing Product and Store code is simple CRUD functionality and already works. I would introduce the separation incrementally when those areas require more business rules or significant changes. This would reduce unnecessary refactoring risk while giving the code base a more consistent structure over time. I would not refactor everything immediately because the existing Product and Store code is simple CRUD functionality and already works. I would introduce the separation incrementally when those areas require more business rules or significant changes. This would reduce unnecessary refactoring risk while giving the code base a more consistent structure over time. I would also keep transaction boundaries around the application operation so that related database changes are handled atomically.
-```
-----
-2. When it comes to API spec and endpoints handlers, we have an Open API yaml file for the `Warehouse` API from which we generate code, but for the other endpoints - `Product` and `Store` - we just coded directly everything. What would be your thoughts about what are the pros and cons of each approach and what would be your choice?
+I would gradually standardize persistence behind repository/adaptor interfaces. The warehouse domain already has a `WarehouseStore` port and a Panache-backed adapter, which makes use cases easier to test without a database. Product uses a `ProductRepository`, while Store uses active record methods directly on `PanacheEntity`. Active Record is concise and reasonable for a small CRUD resource, but it couples the HTTP/resource layer to persistence and makes business rules, unit tests and transaction boundaries harder to isolate.
 
-**Answer:**
-```txt
-The OpenAPI-first approach provides a clear API contract before implementation starts. It makes the request and response models explicit, allows the API specification to be shared with consumers, and can generate interfaces and models consistently. The downside is that the generated code can add build-time complexity and developers need to keep the specification and implementation aligned. For smaller internal APIs, this can sometimes feel like additional overhead.
+For a maintainable codebase I would use a consistent repository approach for all aggregates, keep transaction boundaries at application-service/use-case level, and avoid leaking ORM entities beyond the persistence adapter. I would not refactor everything in one large change: first add characterization tests, then move Store operations behind a repository and migrate one endpoint at a time. I would also add database constraints for invariants such as unique active business-unit codes where practical, indexes for lookup fields, and migrations rather than relying on `drop-and-create` outside local/test environments.
 
-The code-first approach used by Product and Store is simpler to start with because developers can define the endpoint directly in Java and change the implementation quickly. However, the API contract can become less explicit and documentation can drift from the actual implementation. For this project, I would prefer OpenAPI-first for externally consumed or important APIs such as Warehouse, while code-first can remain reasonable for simple internal CRUD APIs. If the application grows and the APIs are consumed by multiple clients, I would gradually standardize on OpenAPI-first to provide consistent contracts and API documentation.
-```
-----
-3. Given the need to balance thorough testing with time and resource constraints, how would you prioritize and implement tests for this project? Which types of tests would you focus on, and how would you ensure test coverage remains effective over time?
+## 2. OpenAPI-generated Warehouse API versus hand-coded Product and Store APIs
 
 **Answer:**
-```txt
-I would prioritize unit tests around the business rules first because they provide fast feedback and cover the most important behaviour. In this project, that includes warehouse creation, duplicate business unit validation, location validation, maximum warehouse count, cumulative location capacity, archiving and warehouse replacement rules. I would then add REST/integration tests for the important API flows to verify the interaction between the resource, database and generated API contract. Tests for Store and Product CRUD operations would cover the main success and error scenarios.
 
-To keep coverage effective over time, I would run the tests automatically in CI for every pull request and maintain a coverage threshold, while avoiding writing tests only to increase the percentage. I would also add regression tests whenever a production defect is fixed and review coverage when new business rules are introduced. This gives a balance between meaningful functional coverage, fast unit-test execution and a smaller number of integration tests that verify the complete application behaviour.
-```
+An OpenAPI-first workflow gives consumers a versioned contract, consistent request/response schemas, generated interfaces/clients, and early contract validation. It is especially useful when multiple teams or external clients integrate with the service. Costs include build/code-generation complexity, generated code that should not be edited manually, and the need to keep the specification and implementation aligned.
+
+Hand-coded endpoints are quick to start and offer direct control over implementation details, but contract drift, inconsistent status codes/error formats and duplicated documentation become more likely. For this service I would use OpenAPI as the source of truth for all public endpoints, generate interfaces/clients where beneficial, and keep business logic in hand-written resources/use cases/adapters. I would validate the specification in CI and add contract tests so generated signatures and actual behavior stay aligned.
+
+## 3. Test prioritization and coverage
+
+**Answer:**
+
+I would prioritize tests by business risk and failure cost. First, unit tests cover domain rules and use cases: duplicate business-unit codes, unknown locations, location warehouse-count/capacity limits, stock greater than capacity, archive idempotency and replacement stock/capacity rules. These tests are fast and deterministic, using fake repositories and location resolvers.
+
+Second, repository/integration tests verify persistence, transaction behavior, archived-versus-active lookups and replacement atomicity against a real PostgreSQL-compatible test database. REST tests cover successful CRUD paths, validation errors, response status codes and not-found behavior. For Store synchronization, a test should prove that the legacy gateway is invoked only after commit and is not invoked after rollback. The bonus fulfillment constraints need boundary tests at and beyond each maximum.
+
+I would use JaCoCo reports in CI and enforce a coverage threshold, but treat coverage as a signal rather than proof of quality: branch coverage and assertions on business behavior matter more than executing lines. Pull requests should run formatting/compilation, unit and integration tests, and coverage checks; failures should block merge. I would review uncovered business-critical branches and add regression tests for every production bug. Test data should be isolated and deterministic, and slow integration tests can be separated from fast unit tests while still running on the main branch.

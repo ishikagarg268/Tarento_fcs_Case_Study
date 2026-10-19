@@ -1,113 +1,90 @@
-# Java Code Assignment
+# Tarento Fulfilment Case Study (FCS)
 
-A Java 17 and Quarkus based application implementing REST APIs for Products, Stores, Warehouses, and Store-Product-Warehouse Fulfilment.
+A Java 17 / Quarkus REST application for the Tarento fulfilment case study. It covers warehouse lifecycle operations, location constraints, fulfilment assignments, product endpoints, and synchronization of Store changes with a legacy integration.
 
-The application demonstrates REST API development, PostgreSQL persistence, business validation, transaction management, automated testing, API documentation, and a hexagonal architecture approach for the fulfilment functionality.
-
-## Assignment Overview
-
-The assignment focuses on implementing and extending an existing Java application with the following capabilities:
-
-- Product management
-- Store management
-- Warehouse management
-- Store-Product-Warehouse fulfilment association
-- Business rule validation
-- Database persistence using PostgreSQL
-- Transaction handling
-- Automated unit and integration testing
-- API documentation using OpenAPI and Swagger UI
-- Test coverage reporting using JaCoCo
-- CI execution using GitHub Actions
-
-The original assignment requirements are available in:
-
-- [CODE_ASSIGNMENT](CODE_ASSIGNMENT.md)
-- [CASE_STUDY](../case-study/CASE_STUDY.md)
-- [QUESTIONS](QUESTIONS.md)
-
----
-
-## Technology Stack
-
-| Technology | Purpose |
-|---|---|
-| Java 17 | Application development |
-| Quarkus | Backend framework |
-| Maven | Build and dependency management |
-| PostgreSQL | Relational database |
-| Hibernate ORM / Panache | Persistence layer |
-| JAX-RS | REST API development |
-| JUnit 5 | Unit testing |
-| REST Assured | API testing |
-| Mockito | Mocking in unit tests |
-| JaCoCo | Code coverage reporting |
-| OpenAPI / Swagger UI | API documentation |
-| Docker | PostgreSQL container and application support |
-| GitHub Actions | Continuous Integration |
-
----
-
-## Application Features
-
-### Product
-
-The Product functionality provides APIs for managing products and their associated information.
-
-### Store
-
-The Store functionality provides APIs for creating, reading, updating, patching, and deleting stores.
-
-Store changes are synchronized with the downstream legacy store system using a transaction-aware CDI event observer. The legacy gateway is invoked only after the database transaction completes successfully.
-
-### Warehouse
-
-Warehouse management follows an adapter/domain-based structure with separate database, REST, domain model, port, and use-case components.
-
-### Fulfilment
-
-The fulfilment functionality associates a Product with a Store and a Warehouse.
-
-The fulfilment implementation is organized using application, domain, and adapter layers following a hexagonal architecture approach
+## Repository layout
 
 ```text
-fulfilment/
-├── adapters/
-│   ├── database/
-│   │   ├── StoreProductWarehouse.java
-│   │   └── StoreProductWarehouseRepository.java
-│   └── restapi/
-│       └── StoreProductWarehouseResource.java
-├── application/
-│   └── StoreProductWarehouseService.java
-└── domain/
-    ├── ports/
-    │   └── StoreProductWarehouseStore.java
-    └── validators/
-        └── StoreProductWarehouseValidator.java
+.
+├── README.md                         # Project overview and runbook
+├── case-study/
+│   ├── BRIEFING.md                   # Case-study context
+│   └── CASE_STUDY.md                 # Design and case-study answers
+├── .github/workflows/ci.yml          # GitHub Actions verification
+└── java-assignment/
+    ├── CODE_ASSIGNMENT.md            # Original assignment
+    ├── QUESTIONS.md                  # Code-base questions and answers
+    ├── pom.xml
+    └── src/
+        ├── main/java/                # REST adapters, domain and persistence
+        ├── main/resources/           # Quarkus config, seed data and OpenAPI
+        └── test/java/                # Unit and endpoint tests
 ```
-## Application Screenshots
 
-### Application Home
-![Application Home](java-assignment/screenshots/01-application-home.png)
+## Requirements
 
-### Swagger UI
-![Swagger UI](java-assignment/screenshots/02-swagger-ui.png)
+- JDK 17 (the Maven compiler is configured for Java 17)
+- Docker Desktop / Docker Engine for Quarkus Dev Services to start PostgreSQL during tests and development, **or** a reachable PostgreSQL instance with the datasource configured
+- Git, if you intend to run or update the GitHub Actions workflow
 
-### Product API
-![Product API](java-assignment/screenshots/03-product-api-success.png)
+Check your Java version with `java -version`. Docker-backed tests require the Docker daemon to be running, not merely the Docker CLI installed.
 
-### Store API
-![Store API](java-assignment/screenshots/04-store-api-success.png)
+## Build and test
 
-### Warehouse API
-![Warehouse API](java-assignment/screenshots/05-warehouse-api-success.png)
+Run commands from `java-assignment/`.
 
-### Fulfilment API
-![Fulfilment API](java-assignment/screenshots/06-fulfilment-success.png)
+**Linux / macOS / Git Bash**
 
-### Test Coverage
-![Test Coverage](java-assignment/screenshots/07-test-coverage.png)
+```bash
+./mvnw --batch-mode clean verify
+```
 
-### Test Results
-![Test Results](java-assignment/screenshots/08-test-results.png)
+**Windows Command Prompt**
+
+```bat
+mvnw.cmd --batch-mode clean verify
+```
+
+The `verify` lifecycle runs the Maven tests and generates the JaCoCo coverage report at `target/site/jacoco/` (relative to `java-assignment/`) when the build reaches the report phase. A failing test or unavailable database container can prevent that report from being generated.
+
+## Run locally
+
+From `java-assignment/`:
+
+```bash
+./mvnw quarkus:dev
+```
+
+On Windows CMD, use `mvnw.cmd quarkus:dev`. The API is served at `http://localhost:8080`; the Quarkus landing page is available at `/index.html`. Warehouse API details are defined in `src/main/resources/openapi/warehouse-openapi.yaml` (relative to `java-assignment/`).
+
+The project uses Quarkus datasource Dev Services for non-production profiles when no explicit datasource URL is configured. In the `prod` profile, datasource values are configured in `src/main/resources/application.properties`; replace local example settings with environment-specific secrets and connection details before deployment.
+
+## Main behaviour and validation
+
+- Warehouse creation validates required fields, non-negative stock/capacity, stock not exceeding capacity, known locations, per-location warehouse limits, and aggregate location capacity.
+- Warehouse replacement preserves the business-unit code and existing stock, archives the previous record, and creates the replacement within one transaction.
+- Archived warehouses are retained for history and excluded from active lookups and active capacity calculations.
+- Fulfilment assignments validate that the Store, Product, and active Warehouse exist; duplicates are rejected; limits are enforced: at most 3 warehouses per Store, 2 warehouses for a Product within a Store, and 5 product types per Warehouse.
+- Store changes are synchronized to the legacy gateway after the database transaction commits. For production-grade delivery guarantees, use a transactional outbox and retry policy.
+- Warehouse and fulfilment validation are kept in dedicated validator classes rather than embedded in REST resource methods.
+
+## Continuous integration
+
+The workflow in `.github/workflows/ci.yml` runs `./mvnw --batch-mode clean verify` on pushes, pull requests, and manual dispatch, then attempts to upload the JaCoCo report. The Maven wrapper script must retain its executable bit in Git for Linux runners. If you see `./mvnw: Permission denied`, fix it with:
+
+```bash
+git update-index --chmod=+x java-assignment/mvnw
+git commit -m "Make Maven wrapper executable"
+git push
+```
+
+## Important production follow-ups
+
+This repository is a case-study implementation, not a complete production deployment. Before production use, add schema migrations instead of `drop-and-create`, authentication and authorization, consistent structured API error responses, request/transaction observability, database-level constraints for invariants, and reliable asynchronous delivery for legacy synchronization. Review concurrency behaviour around location-capacity and fulfilment-limit checks; application-level checks alone may race under concurrent requests.
+
+## Further documentation
+
+- Assignment requirements: [`java-assignment/CODE_ASSIGNMENT.md`](java-assignment/CODE_ASSIGNMENT.md)
+- Code-base questions: [`java-assignment/QUESTIONS.md`](java-assignment/QUESTIONS.md)
+- Case-study discussion: [`case-study/CASE_STUDY.md`](case-study/CASE_STUDY.md)
+- OpenAPI contract: [`java-assignment/src/main/resources/openapi/warehouse-openapi.yaml`](java-assignment/src/main/resources/openapi/warehouse-openapi.yaml)

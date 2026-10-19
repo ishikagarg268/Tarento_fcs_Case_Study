@@ -4,11 +4,19 @@ import java.time.LocalDateTime;
 
 public class Warehouse {
 
-    public Long id;
-    public String businessUnitCode;
-    public String location;
-    public Integer capacity;
-    public Integer stock;
-    public LocalDateTime createdAt;
-    public LocalDateTime archivedAt;
+  // Database identifier; businessUnitCode remains the business key.
+  public Long id;
+
+  // unique business identifier
+  public String businessUnitCode;
+
+  public String location;
+
+  public Integer capacity;
+
+  public Integer stock;
+
+  public LocalDateTime createdAt;
+
+  public LocalDateTime archivedAt;
 }

@@ -1,131 +1,115 @@
 package com.fulfilment.application.monolith.warehouses.adapters.restapi;
 
 import com.fulfilment.application.monolith.warehouses.adapters.database.WarehouseRepository;
-import com.fulfilment.application.monolith.warehouses.domain.usecases.ArchiveWarehouseUseCase;
-import com.fulfilment.application.monolith.warehouses.domain.usecases.CreateWarehouseUseCase;
-import com.fulfilment.application.monolith.warehouses.domain.usecases.ReplaceWarehouseUseCase;
+import com.fulfilment.application.monolith.warehouses.domain.models.Warehouse;
+import com.fulfilment.application.monolith.warehouses.validation.WarehouseValidator;
 import com.warehouse.api.WarehouseResource;
-import com.warehouse.api.beans.Warehouse;
 import jakarta.enterprise.context.RequestScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import jakarta.validation.constraints.NotNull;
+import jakarta.ws.rs.WebApplicationException;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @RequestScoped
 public class WarehouseResourceImpl implements WarehouseResource {
+  @Inject WarehouseRepository warehouseRepository;
+  @Inject WarehouseValidator warehouseValidator;
 
-    @Inject
-    private WarehouseRepository warehouseRepository;
+  @Override
+  public List<com.warehouse.api.beans.Warehouse> listAllWarehousesUnits() {
+    return warehouseRepository.getAll().stream()
+        .filter(warehouse -> warehouse.archivedAt == null)
+        .map(this::toWarehouseResponse).toList();
+  }
 
-    @Inject
-    private CreateWarehouseUseCase createWarehouseUseCase;
+  @Override
+  @Transactional
+  public com.warehouse.api.beans.Warehouse createANewWarehouseUnit(@NotNull com.warehouse.api.beans.Warehouse data) {
+    if (data == null) throw new WebApplicationException("Warehouse request is required", 400);
+    Warehouse warehouse = fromRequest(data);
+    warehouseValidator.validate(warehouse, null);
+    warehouse.createdAt = LocalDateTime.now();
+    warehouseRepository.create(warehouse);
+    return toWarehouseResponse(warehouse);
+  }
 
-    @Inject
-    private ArchiveWarehouseUseCase archiveWarehouseUseCase;
-
-    @Inject
-    private ReplaceWarehouseUseCase replaceWarehouseUseCase;
-
-    @Override
-    public List<Warehouse> listAllWarehousesUnits() {
-        return warehouseRepository.getAll()
-                .stream()
-                .map(this::toWarehouseResponse)
-                .toList();
+  @Override
+  public com.warehouse.api.beans.Warehouse getAWarehouseUnitByID(String id) {
+    Warehouse warehouse = findWarehouseByPathId(id);
+    if (warehouse == null) {
+      // Preserve the assignment's existing endpoint contract for unknown IDs.
+      throw new WebApplicationException("Active warehouse with id " + id + " does not exist", 500);
     }
+    return toWarehouseResponse(warehouse);
+  }
 
-    @Override
-    @Transactional
-    public Warehouse createANewWarehouseUnit(@NotNull Warehouse data) {
-
-        com.fulfilment.application.monolith.warehouses.domain.models.Warehouse warehouse =
-                toDomainWarehouse(data);
-
-        createWarehouseUseCase.create(warehouse);
-
-        return toWarehouseResponse(warehouse);
+  @Override
+  @Transactional
+  public void archiveAWarehouseUnitByID(String id) {
+    Warehouse warehouse = findWarehouseByPathId(id);
+    if (warehouse == null) {
+      // Preserve the assignment's existing endpoint contract for unknown IDs.
+      throw new WebApplicationException("Active warehouse with id " + id + " does not exist", 500);
     }
+    warehouse.archivedAt = LocalDateTime.now();
+    warehouseRepository.update(warehouse);
+  }
 
-    @Override
-    public Warehouse getAWarehouseUnitByID(String id) {
+  @Override
+  @Transactional
+  public com.warehouse.api.beans.Warehouse replaceTheCurrentActiveWarehouse(
+      String businessUnitCode, @NotNull com.warehouse.api.beans.Warehouse data) {
+    if (data == null) throw new WebApplicationException("Warehouse request is required", 400);
+    Warehouse previous = warehouseRepository.findByBusinessUnitCode(businessUnitCode);
+    if (previous == null) throw new WebApplicationException("Active warehouse with business unit code " + businessUnitCode + " does not exist", 404);
 
-        Long warehouseId = Long.valueOf(id);
-
-        com.fulfilment.application.monolith.warehouses.domain.models.Warehouse warehouse =
-                warehouseRepository.findWarehouseById(warehouseId);
-
-        if (warehouse == null) {
-            throw new IllegalArgumentException(
-                    "Warehouse with id " + id + " does not exist.");
-        }
-
-        return toWarehouseResponse(warehouse);
+    Warehouse replacement = fromRequest(data);
+    if (replacement.businessUnitCode != null && !businessUnitCode.equals(replacement.businessUnitCode)) {
+      throw new WebApplicationException("Replacement must reuse business unit code " + businessUnitCode, 400);
     }
-
-    @Override
-    @Transactional
-    public void archiveAWarehouseUnitByID(String id) {
-
-        Long warehouseId = Long.valueOf(id);
-
-        com.fulfilment.application.monolith.warehouses.domain.models.Warehouse warehouse =
-                warehouseRepository.findWarehouseById(warehouseId);
-
-        if (warehouse == null) {
-            throw new IllegalArgumentException(
-                    "Warehouse with id " + id + " does not exist.");
-        }
-
-        archiveWarehouseUseCase.archive(warehouse);
+    replacement.businessUnitCode = businessUnitCode;
+    if (replacement.stock == null || !replacement.stock.equals(previous.stock)) {
+      throw new WebApplicationException("Replacement stock must match the current warehouse stock", 400);
     }
+    warehouseValidator.validate(replacement, previous);
+    previous.archivedAt = LocalDateTime.now();
+    warehouseRepository.update(previous);
+    replacement.createdAt = LocalDateTime.now();
+    warehouseRepository.create(replacement);
+    return toWarehouseResponse(replacement);
+  }
 
-    @Override
-    @Transactional
-    public Warehouse replaceTheCurrentActiveWarehouse(
-            String businessUnitCode,
-            @NotNull Warehouse data) {
-
-        com.fulfilment.application.monolith.warehouses.domain.models.Warehouse newWarehouse =
-                toDomainWarehouse(data);
-
-        newWarehouse.businessUnitCode = businessUnitCode;
-
-        replaceWarehouseUseCase.replace(newWarehouse);
-
-        return toWarehouseResponse(newWarehouse);
+  private Warehouse findWarehouseByPathId(String id) {
+    if (id == null) return null;
+    try {
+      return warehouseRepository.findWarehouseById(Long.parseLong(id));
+    } catch (NumberFormatException ignored) {
+      // Keep compatibility with clients that use the business unit code in this path.
+      return warehouseRepository.findByBusinessUnitCode(id);
     }
+  }
 
-    private com.fulfilment.application.monolith.warehouses.domain.models.Warehouse
-    toDomainWarehouse(Warehouse warehouse) {
+  private Warehouse fromRequest(com.warehouse.api.beans.Warehouse data) {
+    Warehouse warehouse = new Warehouse();
+    warehouse.businessUnitCode = data.getBusinessUnitCode();
+    warehouse.location = data.getLocation();
+    warehouse.capacity = data.getCapacity();
+    warehouse.stock = data.getStock();
+    return warehouse;
+  }
 
-        var domainWarehouse =
-                new com.fulfilment.application.monolith.warehouses.domain.models.Warehouse();
-
-        domainWarehouse.id =
-                warehouse.getId() == null ? null : Long.valueOf(warehouse.getId());
-
-        domainWarehouse.businessUnitCode = warehouse.getBusinessUnitCode();
-        domainWarehouse.location = warehouse.getLocation();
-        domainWarehouse.capacity = warehouse.getCapacity();
-        domainWarehouse.stock = warehouse.getStock();
-
-        return domainWarehouse;
+  private com.warehouse.api.beans.Warehouse toWarehouseResponse(Warehouse warehouse) {
+    var response = new com.warehouse.api.beans.Warehouse();
+    // The OpenAPI schema defines id as a string, so serialize the database ID.
+    if (warehouse.id != null) {
+      response.setId(String.valueOf(warehouse.id));
     }
-
-    private Warehouse toWarehouseResponse(
-            com.fulfilment.application.monolith.warehouses.domain.models.Warehouse warehouse) {
-
-        var response = new Warehouse();
-
-        response.setId(
-                warehouse.id == null ? null : warehouse.id.toString());
-
-        response.setBusinessUnitCode(warehouse.businessUnitCode);
-        response.setLocation(warehouse.location);
-        response.setCapacity(warehouse.capacity);
-        response.setStock(warehouse.stock);
-
-        return response;
-    }
+    response.setBusinessUnitCode(warehouse.businessUnitCode);
+    response.setLocation(warehouse.location);
+    response.setCapacity(warehouse.capacity);
+    response.setStock(warehouse.stock);
+    return response;
+  }
 }

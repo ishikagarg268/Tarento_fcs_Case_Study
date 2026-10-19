@@ -8,17 +8,14 @@ import java.time.LocalDateTime;
 
 @ApplicationScoped
 public class ArchiveWarehouseUseCase implements ArchiveWarehouseOperation {
+  private final WarehouseStore warehouseStore;
+  public ArchiveWarehouseUseCase(WarehouseStore warehouseStore) { this.warehouseStore = warehouseStore; }
 
-    private final WarehouseStore warehouseStore;
-
-    public ArchiveWarehouseUseCase(WarehouseStore warehouseStore) {
-        this.warehouseStore = warehouseStore;
-    }
-
-    @Override
-    public void archive(Warehouse warehouse) {
-        warehouse.archivedAt = LocalDateTime.now();
-
-        warehouseStore.update(warehouse);
-    }
+  @Override
+  public void archive(Warehouse warehouse) {
+    if (warehouse == null) throw new IllegalArgumentException("Warehouse is required");
+    if (warehouse.archivedAt != null) throw new IllegalStateException("Warehouse is already archived");
+    warehouse.archivedAt = LocalDateTime.now();
+    warehouseStore.update(warehouse);
+  }
 }
